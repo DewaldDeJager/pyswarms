@@ -130,13 +130,16 @@ class NichePSO(SwarmOptimizer):
 
             # Allow subswarms to absorb any particles from the main swarm that moved into them
             for sub_swarm in self.sub_swarms:
+                partices_to_move_to_this_sub_swarm = []
                 for n in range(self.n_particles):
                     diff = np.linalg.norm(self.swarm.position[n] - sub_swarm.position)
                     if diff <= sub_swarm.radius:
-                        particle = self.swarm.position[n]
-                        np.delete(self.swarm.position[n], n, 1)  # delete column/particle n of sub_swarm
-                        # Move particle into sub_swarm
-                        sub_swarm.position = np.c_[sub_swarm.position, particle]
+                        partices_to_move_to_this_sub_swarm += n
+                for n in partices_to_move_to_this_sub_swarm:
+                    particle = np.delete(self.swarm.position[n], n, 1)  # delete column/particle n of main swarm
+                    self.n_particles -= 1
+                    # Move particle into sub_swarm
+                    sub_swarm.position = np.c_[sub_swarm.position, particle]
 
             # TODO: Search main swarm for any particle that meets the partitioning criteria and possibly create subswarm
 
