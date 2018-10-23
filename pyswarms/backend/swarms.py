@@ -104,6 +104,7 @@ class Swarm(object):
         default=np.array([]),
         validator=instance_of(np.ndarray),
     )
+    radius = attrib(type=float, validator=instance_of(float), default=0.0)
 
     @n_particles.default
     def n_particles_default(self):
