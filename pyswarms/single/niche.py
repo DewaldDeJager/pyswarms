@@ -135,29 +135,28 @@ class NichePSO(SwarmOptimizer):
             # Allow subswarms to absorb any particles from the main swarm that moved into them
             for sub_swarm in self.sub_swarms:
                 partices_to_move_to_this_sub_swarm = []
-                for n in range(self.n_particles):
-                    diff = np.linalg.norm(self.swarm.position[n] - sub_swarm.position)
+                # Iterate in reverse order so that removal does not affect indices
+                for n in range(1, self.n_particles + 1):
+                    diff = np.linalg.norm(self.swarm.position[-n] - sub_swarm.best_pos)
                     if diff <= sub_swarm.radius:
-                        partices_to_move_to_this_sub_swarm.append(n)
-                # TODO: This still won't work as the indexes are changed - Reverse sort :D
+                        partices_to_move_to_this_sub_swarm.append(-n)
                 for n in partices_to_move_to_this_sub_swarm:
                     particle = self.get_and_remove_particle(n)
                     self.add_particle_to_swarm(sub_swarm, particle)
 
-            # Search main swarm for any particle that meets the partitioning criteria and possibly create subswarm
-
+            # Search main swarm for any particle that meets the partitioning criteria and possibly create sub-swarm
             number_of_iterations_to_track = 3
-            # Calculate standard deviation for each of the particles
             i = 0
             while i < self.n_particles:
+                # Calculate standard deviation for the current particle
                 std_dev = self.calculate_std_dev_of_cost(number_of_iterations_to_track, i)
-
                 # If the particle's deviation is low, split it and it's topographical neighbour into a sub-swarm
                 if std_dev < self.options["delta"]:
                     self.sub_swarms.append(self.create_new_sub_swarm(i))
-                    # Increment the counter again since the next particle will be moved to a sub-swarm
+                    # Increment the counter twice since the next particle will be moved to a sub-swarm
+                    i += 2
+                else:
                     i += 1
-                i += 1
 
         # Obtain the final best_cost and the final best_position
         final_best_cost = self.swarm.best_cost.copy()
@@ -168,7 +167,8 @@ class NichePSO(SwarmOptimizer):
         return final_best_cost, final_best_pos
 
     def calculate_radius(self, swarm: Swarm) -> float:
-        return max([np.linalg.norm(swarm.best_pos - self.get_particle_info(particle)[0]) for particle in range(self.n_particles)])
+        return max([np.linalg.norm(swarm.best_pos - self.get_particle_info(particle)[0])
+                    for particle in range(self.n_particles)])
 
     def calculate_std_dev_of_cost(self, number_of_iterations: int, particle_index: int):
         # Only allow the standard deviation to be considered after 3 iterations, as it starts at 0.0
@@ -178,7 +178,7 @@ class NichePSO(SwarmOptimizer):
 
         values = []
         for i in range(1, number_of_iterations + 1):
-            # TODO: make sure particle index is in range
+            # TODO: make sure particle index is in range - Delete history when removing particle from swarm?
             current_value = self.fitness_history[-i][particle_index]
             values.append(current_value)
         return np.std(np.array(values))
