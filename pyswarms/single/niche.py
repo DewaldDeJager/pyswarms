@@ -27,7 +27,7 @@ class NichePSO(SwarmOptimizer):
         velocity_clamp=None,
         center=1.00,
         ftol=-np.inf,
-        init_pos=None,
+        init_pos=None
     ):
         super(NichePSO, self).__init__(
             n_particles=n_particles,
@@ -136,6 +136,7 @@ class NichePSO(SwarmOptimizer):
                     if diff <= sub_swarm.radius:
                         partices_to_move_to_this_sub_swarm += n
                 for n in partices_to_move_to_this_sub_swarm:
+                    # TODO: Watch out for having rows and columns swapped around here
                     particle = np.delete(self.swarm.position[n], n, 1)  # delete column/particle n of main swarm
                     self.n_particles -= 1
                     # Move particle into sub_swarm
