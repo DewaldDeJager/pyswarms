@@ -49,6 +49,9 @@ class NichePSO(SwarmOptimizer):
 
         self.sub_swarms: List[Swarm] = []
 
+        # Check that the number of particles in the main swarm is even as they are moved to sub-swarms in groups of 2
+        assert n_particles % 2 == 0
+
     def optimize(self, objective_func, iters, fast=False, **kwargs):
         """Optimize the swarm for a number of iterations
 
@@ -142,27 +145,31 @@ class NichePSO(SwarmOptimizer):
                     # Move particle into sub_swarm
                     sub_swarm.position = np.c_[sub_swarm.position, particle]
 
-            # TODO: Search main swarm for any particle that meets the partitioning criteria and possibly create subswarm
+            # Search main swarm for any particle that meets the partitioning criteria and possibly create subswarm
 
-            NUMBER_OF_ITERATIONS_TO_TRACK = 3
+            number_of_iterations_to_track = 3
             # Calculate standard deviation for each of the particles
             i = 0
             while i < self.n_particles:
-                std_dev = self.calculate_std_dev_of_cost(NUMBER_OF_ITERATIONS_TO_TRACK, i)
+                std_dev = self.calculate_std_dev_of_cost(number_of_iterations_to_track, i)
+
                 # If the particle's deviation is low, split it and it's topographical neighbour into a sub-swarm
-                if std_dev < self.options.delta:
+                if std_dev < self.options["delta"]:
+                    particle_position, particle_velocity = self.get_particle_info(i)
+                    self.remove_particle_from_swarm(i)
+
                     # Find particle i's closest neighbour
-                    neighbour_index = (i + 1) % self.n_particles
-                    i += 1
-                    particle_position = np.delete(self.swarm.position, i, 1)
-                    particle_velocity = np.delete(self.swarm.velocity, i, 1)
-                    neighbour_position = np.delete(self.swarm.position, neighbour_index, 1)
-                    neighbour_velocity = np.delete(self.swarm.velocity, neighbour_index, 1)
+                    neighbour_index = i % self.n_particles
+                    neighbour_position, neighbour_velocity = self.get_particle_info(neighbour_index)
+                    self.remove_particle_from_swarm(neighbour_index)
+
                     # Make a new sub-swarm from this particle and it's closest neighbour
-                    self.sub_swarms += Swarm(position=np.c_[particle_position, neighbour_position],
-                                             velocity=np.c_[particle_velocity, neighbour_velocity],
-                                             options=self.options)
-                    self.n_particles -= 1
+                    self.sub_swarms.append(Swarm(position=np.c_[particle_position, neighbour_position],
+                                                 velocity=np.c_[particle_velocity, neighbour_velocity],
+                                                 options=self.options))
+                    # Increment the counter again since the next particle will be moved to a sub-swarm
+                    i += 1
+                i += 1
 
         # Obtain the final best_cost and the final best_position
         final_best_cost = self.swarm.best_cost.copy()
@@ -175,13 +182,29 @@ class NichePSO(SwarmOptimizer):
     def calculate_radius(self, swarm: Swarm) -> float:
         return max([np.linalg.norm(swarm.best_pos - particle) for particle in self.n_particles])
 
-    def calculate_std_dev_of_cost(self, number_of_iterations, particle_index):
-        # History of fitness evaluations is stored in self.fitness_history
+    def calculate_std_dev_of_cost(self, number_of_iterations: int, particle_index: int):
+        # Only allow the standard deviation to be considered after 3 iterations, as it starts at 0.0
         length = len(self.fitness_history)
-        number_of_iterations = min(number_of_iterations, length)
+        if length < number_of_iterations:
+            return np.Infinity
+
         values = []
-        for i in range(number_of_iterations):
+        for i in range(1, number_of_iterations + 1):
             # TODO: make sure particle index is in range
-            current_value = self.fitness_history[length - i][particle_index]
-            values += current_value
-        return np.std(values)
+            current_value = self.fitness_history[-i][particle_index]
+            values.append(current_value)
+        return np.std(np.array(values))
+
+    # TODO: Move this to the Swarm class
+    def remove_particle_from_swarm(self, index):
+        self.swarm.position = np.delete(self.swarm.position, index, 0)
+        self.swarm.velocity = np.delete(self.swarm.velocity, index, 0)
+        self.swarm.pbest_cost = np.delete(self.swarm.pbest_cost, index, 0)
+        self.swarm.pbest_pos = np.delete(self.swarm.pbest_pos, index, 0)
+        self.n_particles -= 1
+        self.swarm.n_particles = self.n_particles
+        self.swarm_size = self.n_particles, self.dimensions
+
+    # TODO: Move this to the Swarm class
+    def get_particle_info(self, index):
+        return self.swarm.position[index, :], self.swarm.velocity[index, :]
