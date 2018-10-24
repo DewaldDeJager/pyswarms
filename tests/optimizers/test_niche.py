@@ -32,7 +32,7 @@ class TestNicheOptimizer(abc.ABC):
     @pytest.fixture
     def options(self):
         """Default options dictionary for most PSO use-cases"""
-        return {"c1": 0.3, "c2": 0.7, "w": 0.9, "k": 2, "p": 2, "r": 1}
+        return {"c1": 0.3, "c2": 0.7, "w": 0.9, "k": 2, "p": 2, "r": 1, "delta": 0.001, "mu": 1}
 
     def test_obj_incorrect_kwargs(self, options):
         """Test if error is raised with wrong kwargs"""
