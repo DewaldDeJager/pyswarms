@@ -1,70 +1,13 @@
 # -*- coding: utf-8 -*-
 
 r"""
-A Local-best Particle Swarm Optimization (lbest PSO) algorithm.
+A cognition-only Particle Swarm Optimization algorithm.
 
-Similar to global-best PSO, it takes a set of candidate solutions,
-and finds the best solution using a position-velocity update method.
-However, it uses a ring topology, thus making the particles
-attracted to its corresponding neighborhood.
-
-The position update can be defined as:
-
-.. math::
-
-   x_{i}(t+1) = x_{i}(t) + v_{i}(t+1)
-
-Where the position at the current timestep :math:`t` is updated using
-the computed velocity at :math:`t+1`. Furthermore, the velocity update
-is defined as:
-
-.. math::
-
-   v_{ij}(t + 1) = m * v_{ij}(t) + c_{1}r_{1j}(t)[y_{ij}(t) − x_{ij}(t)] + c_{2}r_{2j}(t)[\hat{y}_{j}(t) − x_{ij}(t)]
-
-However, in local-best PSO, a particle doesn't compare itself to the
-overall performance of the swarm. Instead, it looks at the performance
-of its nearest-neighbours, and compares itself with them. In general,
-this kind of topology takes much more time to converge, but has a more
-powerful explorative feature.
-
-In this implementation, a neighbor is selected via a k-D tree
-imported from :code:`scipy`. Distance are computed with either
-the L1 or L2 distance. The nearest-neighbours are then queried from
-this k-D tree. They are computed for every iteration.
-
-An example usage is as follows:
-
-.. code-block:: python
-
-    import pyswarms as ps
-    from pyswarms.utils.functions import single_obj as fx
-
-    # Set-up hyperparameters
-    options = {'c1': 0.5, 'c2': 0.3, 'w': 0.9, 'k': 3, 'p': 2}
-
-    # Call instance of LBestPSO with a neighbour-size of 3 determined by
-    # the L2 (p=2) distance.
-    optimizer = ps.single.LocalBestPSO(n_particles=10, dimensions=2,
-                                       options=options)
-
-    # Perform optimization
-    stats = optimizer.optimize(fx.sphere, iters=100)
-
-This algorithm was adapted from one of the earlier works of
-J. Kennedy and R.C. Eberhart in Particle Swarm Optimization
-[IJCNN1995]_ [MHS1995]_
-
-.. [IJCNN1995] J. Kennedy and R.C. Eberhart, "Particle Swarm Optimization,"
-    Proceedings of the IEEE International Joint Conference on Neural
-    Networks, 1995, pp. 1942-1948.
-
-.. [MHS1995] J. Kennedy and R.C. Eberhart, "A New Optimizer using Particle
-    Swarm Theory,"  in Proceedings of the Sixth International
-    Symposium on Micromachine and Human Science, 1995, pp. 39–43.
+An implementation of PSO where c2 is fixed to 0, resulting in no information being exchanged between particles. Each
+particle can be seen as an individual hill-climber with a velocity as well. This implementation inherits from the local
+best PSO implementation so that each particle sees it's personal best position as the global best but topology does not
+matter as the social component of the velocity equation is eliminated.
 """
-
-# Import standard library
 
 # Import modules
 import numpy as np
@@ -105,7 +48,7 @@ class CognitionOnlyPSO(LocalBestPSO):
         ftol : float
             relative error in objective_func(best_pos) acceptable for
             convergence
-        options : dict with keys :code:`{'c1', 'c2', 'w', 'k', 'p'}`
+        options : dict with keys :code:`{'c1', 'w', 'k', 'p'}`
             a dictionary containing the parameters for the specific
             optimization technique
                 * c1 : float
