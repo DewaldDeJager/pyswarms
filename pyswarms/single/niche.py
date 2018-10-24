@@ -117,14 +117,16 @@ class NichePSO(SwarmOptimizer):
 
             for sub_swarm in self.sub_swarms:
                 # Train sub_swarm for one iteration using the GBest model
+                # TODO: Decide if I need a second function here, that evaluates it as a single ANN and not a NNE
+                # FIXME: This needs to happen AFTER position update - This needs to be done across all optimisers
+                # Update each particle's fitness
+                sub_swarm.current_cost = objective_func(sub_swarm.position, **kwargs)
+
                 sub_swarm.pbest_cost = objective_func(sub_swarm.pbest_pos, **kwargs)
                 sub_swarm.pbest_pos, sub_swarm.pbest_cost = compute_pbest(sub_swarm)
                 sub_swarm.best_pos, sub_swarm.best_cost = self.top.compute_gbest(sub_swarm)
                 sub_swarm.velocity = self.top.compute_velocity(sub_swarm, self.velocity_clamp)
                 sub_swarm.position = self.top.compute_position(sub_swarm, self.bounds)
-                # TODO: Decide if I need a second function here, that evaluates it as a single ANN and not a NNE
-                # Update each particle's fitness
-                sub_swarm.current_cost = objective_func(sub_swarm.position, **kwargs)
                 # Update swarm radius
                 sub_swarm.radius = self.calculate_radius(sub_swarm)
 
@@ -136,14 +138,11 @@ class NichePSO(SwarmOptimizer):
                 for n in range(self.n_particles):
                     diff = np.linalg.norm(self.swarm.position[n] - sub_swarm.position)
                     if diff <= sub_swarm.radius:
-                        partices_to_move_to_this_sub_swarm += n
+                        partices_to_move_to_this_sub_swarm.append(n)
+                # TODO: This still won't work as the indexes are changed - Reverse sort :D
                 for n in partices_to_move_to_this_sub_swarm:
-                    # TODO: Watch out for having rows and columns swapped around here
-                    particle = np.delete(self.swarm.position, n, 1)  # delete column/particle n of main swarm
-                    # TODO: Modify other parameters as well, such as swarm.velocity
-                    self.n_particles -= 1
-                    # Move particle into sub_swarm
-                    sub_swarm.position = np.c_[sub_swarm.position, particle]
+                    particle = self.get_and_remove_particle(n)
+                    self.add_particle_to_swarm(sub_swarm, particle)
 
             # Search main swarm for any particle that meets the partitioning criteria and possibly create subswarm
 
@@ -155,18 +154,7 @@ class NichePSO(SwarmOptimizer):
 
                 # If the particle's deviation is low, split it and it's topographical neighbour into a sub-swarm
                 if std_dev < self.options["delta"]:
-                    particle_position, particle_velocity = self.get_particle_info(i)
-                    self.remove_particle_from_swarm(i)
-
-                    # Find particle i's closest neighbour
-                    neighbour_index = i % self.n_particles
-                    neighbour_position, neighbour_velocity = self.get_particle_info(neighbour_index)
-                    self.remove_particle_from_swarm(neighbour_index)
-
-                    # Make a new sub-swarm from this particle and it's closest neighbour
-                    self.sub_swarms.append(Swarm(position=np.c_[particle_position, neighbour_position],
-                                                 velocity=np.c_[particle_velocity, neighbour_velocity],
-                                                 options=self.options))
+                    self.sub_swarms.append(self.create_new_sub_swarm(i))
                     # Increment the counter again since the next particle will be moved to a sub-swarm
                     i += 1
                 i += 1
@@ -180,7 +168,7 @@ class NichePSO(SwarmOptimizer):
         return final_best_cost, final_best_pos
 
     def calculate_radius(self, swarm: Swarm) -> float:
-        return max([np.linalg.norm(swarm.best_pos - particle) for particle in self.n_particles])
+        return max([np.linalg.norm(swarm.best_pos - self.get_particle_info(particle)[0]) for particle in range(self.n_particles)])
 
     def calculate_std_dev_of_cost(self, number_of_iterations: int, particle_index: int):
         # Only allow the standard deviation to be considered after 3 iterations, as it starts at 0.0
@@ -197,6 +185,7 @@ class NichePSO(SwarmOptimizer):
 
     # TODO: Move this to the Swarm class
     def remove_particle_from_swarm(self, index):
+        # TODO: Modify other parameters as well
         self.swarm.position = np.delete(self.swarm.position, index, 0)
         self.swarm.velocity = np.delete(self.swarm.velocity, index, 0)
         self.swarm.pbest_cost = np.delete(self.swarm.pbest_cost, index, 0)
@@ -208,3 +197,34 @@ class NichePSO(SwarmOptimizer):
     # TODO: Move this to the Swarm class
     def get_particle_info(self, index):
         return self.swarm.position[index, :], self.swarm.velocity[index, :]
+
+    # TODO: Decide whether to move this to Swarm class or not - Or change remove method to do this
+    def get_and_remove_particle(self, index):
+        particle = self.get_particle_info(index)
+        self.remove_particle_from_swarm(index)
+        return particle
+
+    # TODO: Move this to the Swarm class
+    def add_particle_to_swarm(self, sub_swarm, particle):
+        sub_swarm.position = np.c_[sub_swarm.position, particle[0]]
+        sub_swarm.velocity = np.c_[sub_swarm.position, particle[1]]
+        # TODO: Finish implementing this
+
+    def create_new_sub_swarm(self, index):
+        particle_position, particle_velocity = self.get_particle_info(index)
+        self.remove_particle_from_swarm(index)
+
+        # Find particle i's closest neighbour
+        neighbour_index = index % self.n_particles
+        neighbour_position, neighbour_velocity = self.get_particle_info(neighbour_index)
+        self.remove_particle_from_swarm(neighbour_index)
+
+        # Make a new sub-swarm from this particle and it's closest neighbour
+        position = np.c_[particle_position, neighbour_position]
+        velocity = np.c_[particle_velocity, neighbour_velocity]
+        swarm = Swarm(position=position, velocity=velocity, options=self.options)
+        # TODO: Investigate why this is being set to an empty list rather than a list of 2 values
+        # swarm.pbest_cost = np.all(self.n_particles, np.inf)
+        # Solution: pbest_pox should be initialised to the initial position and pbest_cost to it's cost
+        swarm.pbest_pos = position
+        return swarm
