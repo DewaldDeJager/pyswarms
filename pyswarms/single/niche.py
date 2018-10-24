@@ -79,8 +79,6 @@ class NichePSO(SwarmOptimizer):
         # Initialize the resettable attributes
         self.reset()
 
-        # TODO: Fix everything below this
-
         for _ in self.reporter.pbar(iters, self.name):
             # Train the main swarm using the cognition model for one iteration
 
@@ -101,6 +99,7 @@ class NichePSO(SwarmOptimizer):
                 mean_neighbor_cost=np.mean(self.swarm.best_cost),
                 position=self.swarm.position,
                 velocity=self.swarm.velocity,
+                cost=self.swarm.current_cost
             )
             self._populate_history(hist)
 
@@ -137,12 +136,33 @@ class NichePSO(SwarmOptimizer):
                         partices_to_move_to_this_sub_swarm += n
                 for n in partices_to_move_to_this_sub_swarm:
                     # TODO: Watch out for having rows and columns swapped around here
-                    particle = np.delete(self.swarm.position[n], n, 1)  # delete column/particle n of main swarm
+                    particle = np.delete(self.swarm.position, n, 1)  # delete column/particle n of main swarm
+                    # TODO: Modify other parameters as well, such as swarm.velocity
                     self.n_particles -= 1
                     # Move particle into sub_swarm
                     sub_swarm.position = np.c_[sub_swarm.position, particle]
 
             # TODO: Search main swarm for any particle that meets the partitioning criteria and possibly create subswarm
+
+            NUMBER_OF_ITERATIONS_TO_TRACK = 3
+            # Calculate standard deviation for each of the particles
+            i = 0
+            while i < self.n_particles:
+                std_dev = self.calculate_std_dev_of_cost(NUMBER_OF_ITERATIONS_TO_TRACK, i)
+                # If the particle's deviation is low, split it and it's topographical neighbour into a sub-swarm
+                if std_dev < self.options.delta:
+                    # Find particle i's closest neighbour
+                    neighbour_index = (i + 1) % self.n_particles
+                    i += 1
+                    particle_position = np.delete(self.swarm.position, i, 1)
+                    particle_velocity = np.delete(self.swarm.velocity, i, 1)
+                    neighbour_position = np.delete(self.swarm.position, neighbour_index, 1)
+                    neighbour_velocity = np.delete(self.swarm.velocity, neighbour_index, 1)
+                    # Make a new sub-swarm from this particle and it's closest neighbour
+                    self.sub_swarms += Swarm(position=np.c_[particle_position, neighbour_position],
+                                             velocity=np.c_[particle_velocity, neighbour_velocity],
+                                             options=self.options)
+                    self.n_particles -= 1
 
         # Obtain the final best_cost and the final best_position
         final_best_cost = self.swarm.best_cost.copy()
@@ -154,3 +174,14 @@ class NichePSO(SwarmOptimizer):
 
     def calculate_radius(self, swarm: Swarm) -> float:
         return max([np.linalg.norm(swarm.best_pos - particle) for particle in self.n_particles])
+
+    def calculate_std_dev_of_cost(self, number_of_iterations, particle_index):
+        # History of fitness evaluations is stored in self.fitness_history
+        length = len(self.fitness_history)
+        number_of_iterations = min(number_of_iterations, length)
+        values = []
+        for i in range(number_of_iterations):
+            # TODO: make sure particle index is in range
+            current_value = self.fitness_history[length - i][particle_index]
+            values += current_value
+        return np.std(values)
