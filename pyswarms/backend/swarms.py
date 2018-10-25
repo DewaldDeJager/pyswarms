@@ -117,3 +117,23 @@ class Swarm(object):
     @pbest_pos.default
     def pbest_pos_default(self):
         return self.position
+
+    def remove_particle(self, index):
+        particle = self.get_particle(index)
+        self.position = np.delete(self.position, index, 0)
+        self.velocity = np.delete(self.velocity, index, 0)
+        self.pbest_cost = np.delete(self.pbest_cost, index, 0)
+        self.pbest_pos = np.delete(self.pbest_pos, index, 0)
+        self.current_cost = np.delete(self.current_cost, index, 0)
+        self.n_particles -= 1
+        # TODO: Recalculate swarm radius
+        return particle
+
+    def get_particle(self, index):
+        # TODO: Create a named tuple for a Particle
+        return self.position[index, :], self.velocity[index, :]
+
+    def add_particle(self, particle):
+        self.position = np.c_[self.position, particle[0]]
+        self.velocity = np.c_[self.velocity, particle[1]]
+        # TODO: Finish implementing this

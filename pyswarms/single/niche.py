@@ -18,6 +18,10 @@ from ..base import SwarmOptimizer
 from ..utils.reporter import Reporter
 
 
+def euclidian_distance(x, y):
+    return np.linalg.norm(x - y)
+
+
 class NichePSO(SwarmOptimizer):
     def __init__(
         self,
@@ -137,12 +141,12 @@ class NichePSO(SwarmOptimizer):
                 partices_to_move_to_this_sub_swarm = []
                 # Iterate in reverse order so that removal does not affect indices
                 for n in range(1, self.n_particles + 1):
-                    diff = np.linalg.norm(self.swarm.position[-n] - sub_swarm.best_pos)
+                    diff = euclidian_distance(self.swarm.position[-n], sub_swarm.best_pos)
                     if diff <= sub_swarm.radius:
                         partices_to_move_to_this_sub_swarm.append(-n)
                 for n in partices_to_move_to_this_sub_swarm:
-                    particle = self.get_and_remove_particle(n)
-                    self.add_particle_to_swarm(sub_swarm, particle)
+                    particle = self.remove_particle_from_swarm(n)
+                    sub_swarm.add_particle(particle)
 
             # Search main swarm for any particle that meets the partitioning criteria and possibly create sub-swarm
             number_of_iterations_to_track = 3
@@ -167,7 +171,7 @@ class NichePSO(SwarmOptimizer):
         return final_best_cost, final_best_pos
 
     def calculate_radius(self, swarm: Swarm) -> float:
-        return max([np.linalg.norm(swarm.best_pos - self.get_particle_info(particle)[0])
+        return max([euclidian_distance(swarm.best_pos, self.swarm.get_particle(particle)[0])
                     for particle in range(self.n_particles)])
 
     def calculate_std_dev_of_cost(self, number_of_iterations: int, particle_index: int):
@@ -183,41 +187,12 @@ class NichePSO(SwarmOptimizer):
             values.append(current_value)
         return np.std(np.array(values))
 
-    # TODO: Move this to the Swarm class
-    def remove_particle_from_swarm(self, index):
-        # TODO: Modify other parameters as well
-        self.swarm.position = np.delete(self.swarm.position, index, 0)
-        self.swarm.velocity = np.delete(self.swarm.velocity, index, 0)
-        self.swarm.pbest_cost = np.delete(self.swarm.pbest_cost, index, 0)
-        self.swarm.pbest_pos = np.delete(self.swarm.pbest_pos, index, 0)
-        self.n_particles -= 1
-        self.swarm.n_particles = self.n_particles
-        self.swarm_size = self.n_particles, self.dimensions
-
-    # TODO: Move this to the Swarm class
-    def get_particle_info(self, index):
-        return self.swarm.position[index, :], self.swarm.velocity[index, :]
-
-    # TODO: Decide whether to move this to Swarm class or not - Or change remove method to do this
-    def get_and_remove_particle(self, index):
-        particle = self.get_particle_info(index)
-        self.remove_particle_from_swarm(index)
-        return particle
-
-    # TODO: Move this to the Swarm class
-    def add_particle_to_swarm(self, sub_swarm, particle):
-        sub_swarm.position = np.c_[sub_swarm.position, particle[0]]
-        sub_swarm.velocity = np.c_[sub_swarm.position, particle[1]]
-        # TODO: Finish implementing this
-
     def create_new_sub_swarm(self, index):
-        particle_position, particle_velocity = self.get_particle_info(index)
-        self.remove_particle_from_swarm(index)
+        particle_position, particle_velocity = self.remove_particle_from_swarm(index)
 
         # Find particle i's closest neighbour
         neighbour_index = index % self.n_particles
-        neighbour_position, neighbour_velocity = self.get_particle_info(neighbour_index)
-        self.remove_particle_from_swarm(neighbour_index)
+        neighbour_position, neighbour_velocity = self.remove_particle_from_swarm(neighbour_index)
 
         # Make a new sub-swarm from this particle and it's closest neighbour
         position = np.c_[particle_position, neighbour_position]
@@ -233,13 +208,14 @@ class NichePSO(SwarmOptimizer):
         if len(self.sub_swarms) < 2:
             return
 
-        # Calculate list of unique pairs of sub-swarms
-        pairs = combinations(self.sub_swarms, 2)
+        # Calculate list of unique pairs of sub-swarms, using indices
+        pairs = combinations(range(len(self.sub_swarms)), 2)
 
         # Iterate through pairs and see if any can be merged
         for i, j in pairs:
-            # TODO: Check if sub-swarm i can be merged with sub-swarm j
-            can_be_merged = i == j
+            # Check if sub-swarm i can be merged with sub-swarm j
+            distance = euclidian_distance(self.sub_swarms[i].best_pos, self.sub_swarms[j].best_pos)
+            can_be_merged = distance < self.options["mu"]
 
             if can_be_merged:
                 # TODO: Perform the merge of sub-swarm i and sub-swarm j
@@ -249,3 +225,9 @@ class NichePSO(SwarmOptimizer):
 
         # Finish after iterating through list of pairs without performing any merges
         return
+
+    def remove_particle_from_swarm(self, index):
+        particle = self.swarm.remove_particle(index)
+        self.n_particles -= 1
+        self.swarm_size = self.n_particles, self.dimensions
+        return particle
