@@ -8,6 +8,7 @@ TODO: Add more information here
 
 import logging
 from itertools import combinations
+from time import sleep
 from typing import List
 
 import numpy as np
@@ -57,7 +58,7 @@ class NichePSO(SwarmOptimizer):
         # Check that the number of particles in the main swarm is even as they are moved to sub-swarms in groups of 2
         assert n_particles % 2 == 0
 
-    def optimize(self, objective_func, iters, fast=False, **kwargs):
+    def optimize(self, objective_func, iters, fast=True, **kwargs):
         """Optimize the swarm for a number of iterations
 
         Performs the optimization to evaluate the objective
@@ -69,9 +70,8 @@ class NichePSO(SwarmOptimizer):
             objective function to be evaluated
         iters : int
             number of iterations
-        fast : bool (default is False)
+        fast : bool (default is True)
             if True, time.sleep is not executed
-            TODO: Implement this
         kwargs : dict
             arguments for the objective function
 
@@ -88,6 +88,9 @@ class NichePSO(SwarmOptimizer):
         self.reset()
 
         for _ in self.reporter.pbar(iters, self.name):
+            if not fast:
+                sleep(0.01)
+
             # Train the main swarm using the cognition model for one iteration
 
             # Compute cost for current position and personal best
@@ -122,7 +125,6 @@ class NichePSO(SwarmOptimizer):
 
             for sub_swarm in self.sub_swarms:
                 # Train sub_swarm for one iteration using the GBest model
-                # TODO: Decide if I need a second function here, that evaluates it as a single ANN and not a NNE
                 # FIXME: This needs to happen AFTER position update - This needs to be done across all optimisers
                 # Update each particle's fitness
                 sub_swarm.current_cost = objective_func(sub_swarm.position, **kwargs)
@@ -182,7 +184,6 @@ class NichePSO(SwarmOptimizer):
 
         values = []
         for i in range(1, number_of_iterations + 1):
-            # TODO: make sure particle index is in range - Delete history when removing particle from swarm?
             current_value = self.fitness_history[-i][particle_index]
             values.append(current_value)
         return np.std(np.array(values))
@@ -232,4 +233,6 @@ class NichePSO(SwarmOptimizer):
         particle = self.swarm.remove_particle(index)
         self.n_particles -= 1
         self.swarm_size = self.n_particles, self.dimensions
+        for fitness_values in self.fitness_history:
+            del fitness_values[index]
         return particle
