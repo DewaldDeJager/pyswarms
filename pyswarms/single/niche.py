@@ -218,7 +218,9 @@ class NichePSO(SwarmOptimizer):
             can_be_merged = distance < self.options["mu"]
 
             if can_be_merged:
-                # TODO: Perform the merge of sub-swarm i and sub-swarm j
+                # Perform the merge of sub-swarm i and sub-swarm j
+                self.sub_swarms[i].add_particle((self.sub_swarms[j].position, self.sub_swarms[j].velocity))
+                del self.sub_swarms[j]
                 # When a merge happens, re-start the process
                 self.merge_sub_swarms()
                 return
