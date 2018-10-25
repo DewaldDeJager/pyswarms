@@ -7,6 +7,7 @@ TODO: Add more information here
 """
 
 import logging
+from itertools import combinations
 from typing import List
 
 import numpy as np
@@ -107,9 +108,9 @@ class NichePSO(SwarmOptimizer):
             self._populate_history(hist)
 
             # Verify stop criteria based on the relative acceptable cost ftol
-            # relative_measure = self.ftol * (1 + np.abs(best_cost_yet_found))
-            # if np.abs(self.swarm.best_cost - best_cost_yet_found) < relative_measure:
-            #     break
+            relative_measure = self.ftol * (1 + np.abs(best_cost_yet_found))
+            if np.abs(self.swarm.best_cost - best_cost_yet_found) < relative_measure:
+                break
 
             # Perform position velocity update
             self.swarm.velocity = self.top.compute_velocity(self.swarm, self.velocity_clamp)
@@ -121,7 +122,6 @@ class NichePSO(SwarmOptimizer):
                 # FIXME: This needs to happen AFTER position update - This needs to be done across all optimisers
                 # Update each particle's fitness
                 sub_swarm.current_cost = objective_func(sub_swarm.position, **kwargs)
-
                 sub_swarm.pbest_cost = objective_func(sub_swarm.pbest_pos, **kwargs)
                 sub_swarm.pbest_pos, sub_swarm.pbest_cost = compute_pbest(sub_swarm)
                 sub_swarm.best_pos, sub_swarm.best_cost = self.top.compute_gbest(sub_swarm)
@@ -130,7 +130,7 @@ class NichePSO(SwarmOptimizer):
                 # Update swarm radius
                 sub_swarm.radius = self.calculate_radius(sub_swarm)
 
-            # TODO: If possible, merge sub-swarms
+            self.merge_sub_swarms()
 
             # Allow subswarms to absorb any particles from the main swarm that moved into them
             for sub_swarm in self.sub_swarms:
@@ -228,3 +228,24 @@ class NichePSO(SwarmOptimizer):
         # Solution: pbest_pox should be initialised to the initial position and pbest_cost to it's cost
         swarm.pbest_pos = position
         return swarm
+
+    def merge_sub_swarms(self):
+        if len(self.sub_swarms) < 2:
+            return
+
+        # Calculate list of unique pairs of sub-swarms
+        pairs = combinations(self.sub_swarms, 2)
+
+        # Iterate through pairs and see if any can be merged
+        for i, j in pairs:
+            # TODO: Check if sub-swarm i can be merged with sub-swarm j
+            can_be_merged = i == j
+
+            if can_be_merged:
+                # TODO: Perform the merge of sub-swarm i and sub-swarm j
+                # When a merge happens, re-start the process
+                self.merge_sub_swarms()
+                return
+
+        # Finish after iterating through list of pairs without performing any merges
+        return
