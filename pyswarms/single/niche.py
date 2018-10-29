@@ -197,8 +197,8 @@ class NichePSO(SwarmOptimizer):
         neighbour_position, neighbour_velocity = self.remove_particle_from_swarm(neighbour_index)
 
         # Make a new sub-swarm from this particle and it's closest neighbour
-        position = np.c_[particle_position, neighbour_position]
-        velocity = np.c_[particle_velocity, neighbour_velocity]
+        position = np.row_stack((particle_position, neighbour_position))
+        velocity = np.row_stack((particle_velocity, neighbour_velocity))
         swarm = Swarm(position=position, velocity=velocity, options=self.options)
         # TODO: Investigate why this is being set to an empty list rather than a list of 2 values
         # swarm.pbest_cost = np.all(self.n_particles, np.inf)
