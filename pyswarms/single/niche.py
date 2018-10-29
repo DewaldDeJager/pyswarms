@@ -94,34 +94,35 @@ class NichePSO(SwarmOptimizer):
             # Train the main swarm using the cognition model for one iteration
 
             # Compute cost for current position and personal best
-            self.swarm.current_cost = objective_func(self.swarm.position, **kwargs)
-            self.swarm.pbest_cost = objective_func(self.swarm.pbest_pos, **kwargs)
+            if self.swarm_size[0] > 0:
+                self.swarm.current_cost = objective_func(self.swarm.position, **kwargs)
+                self.swarm.pbest_cost = objective_func(self.swarm.pbest_pos, **kwargs)
 
-            self.swarm.pbest_pos, self.swarm.pbest_cost = compute_pbest(self.swarm)
-            best_cost_yet_found = np.min(self.swarm.best_cost)
-            # Update gbest from neighborhood
-            self.swarm.best_pos, self.swarm.best_cost = self.top.compute_gbest(self.swarm)
+                self.swarm.pbest_pos, self.swarm.pbest_cost = compute_pbest(self.swarm)
+                best_cost_yet_found = np.min(self.swarm.best_cost)
+                # Update gbest from neighborhood
+                self.swarm.best_pos, self.swarm.best_cost = self.top.compute_gbest(self.swarm)
 
-            self.reporter.hook(best_cost=np.min(self.swarm.best_cost))
-            # Save to history
-            hist = self.ToHistory(
-                best_cost=self.swarm.best_cost,
-                mean_pbest_cost=np.mean(self.swarm.pbest_cost),
-                mean_neighbor_cost=np.mean(self.swarm.best_cost),
-                position=self.swarm.position,
-                velocity=self.swarm.velocity,
-                cost=self.swarm.current_cost
-            )
-            self._populate_history(hist)
+                self.reporter.hook(best_cost=np.min(self.swarm.best_cost))
+                # Save to history
+                hist = self.ToHistory(
+                    best_cost=self.swarm.best_cost,
+                    mean_pbest_cost=np.mean(self.swarm.pbest_cost),
+                    mean_neighbor_cost=np.mean(self.swarm.best_cost),
+                    position=self.swarm.position,
+                    velocity=self.swarm.velocity,
+                    cost=self.swarm.current_cost
+                )
+                self._populate_history(hist)
 
-            # Verify stop criteria based on the relative acceptable cost ftol
-            relative_measure = self.ftol * (1 + np.abs(best_cost_yet_found))
-            if np.abs(self.swarm.best_cost - best_cost_yet_found) < relative_measure:
-                break
+                # Verify stop criteria based on the relative acceptable cost ftol
+                relative_measure = self.ftol * (1 + np.abs(best_cost_yet_found))
+                if np.abs(self.swarm.best_cost - best_cost_yet_found) < relative_measure:
+                    break
 
-            # Perform position velocity update
-            self.swarm.velocity = self.top.compute_velocity(self.swarm, self.velocity_clamp)
-            self.swarm.position = self.top.compute_position(self.swarm, self.bounds)
+                # Perform position velocity update
+                self.swarm.velocity = self.top.compute_velocity(self.swarm, self.velocity_clamp)
+                self.swarm.position = self.top.compute_position(self.swarm, self.bounds)
 
             for sub_swarm in self.sub_swarms:
                 # Train sub_swarm for one iteration using the GBest model
@@ -202,6 +203,8 @@ class NichePSO(SwarmOptimizer):
         # TODO: Investigate why this is being set to an empty list rather than a list of 2 values
         # swarm.pbest_cost = np.all(self.n_particles, np.inf)
         # Solution: pbest_pox should be initialised to the initial position and pbest_cost to it's cost
+        # TODO: Change this so that the pbest_position is not the same as the initial position. Or is this only for
+        # the GBEST?
         swarm.pbest_pos = position
         return swarm
 
@@ -233,6 +236,6 @@ class NichePSO(SwarmOptimizer):
         particle = self.swarm.remove_particle(index)
         self.n_particles -= 1
         self.swarm_size = self.n_particles, self.dimensions
-        for fitness_values in self.fitness_history:
-            del fitness_values[index]
+        for i in range(len(self.fitness_history)):
+            self.fitness_history[i] = np.delete(self.fitness_history[i], index, axis=0)
         return particle
