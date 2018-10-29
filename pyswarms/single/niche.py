@@ -173,9 +173,10 @@ class NichePSO(SwarmOptimizer):
                           lvl=logging.INFO)
         return final_best_cost, final_best_pos
 
-    def calculate_radius(self, swarm: Swarm) -> float:
-        return max([euclidian_distance(swarm.best_pos, self.swarm.get_particle(particle)[0])
-                    for particle in range(self.n_particles)])
+    def calculate_radius(self, swarm: Swarm = None) -> float:
+        swarm = self.swarm if swarm is None else swarm
+        return max([euclidian_distance(swarm.best_pos, swarm.get_particle(particle)[0])
+                    for particle in range(swarm.n_particles)])
 
     def calculate_std_dev_of_cost(self, number_of_iterations: int, particle_index: int):
         # Only allow the standard deviation to be considered after 3 iterations, as it starts at 0.0
