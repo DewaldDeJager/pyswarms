@@ -134,6 +134,9 @@ class Swarm(object):
         return self.position[index, :], self.velocity[index, :]
 
     def add_particle(self, particle):
-        self.position = np.c_[self.position, particle[0]]
-        self.velocity = np.c_[self.velocity, particle[1]]
+        self.position = np.row_stack((self.position, particle[0]))
+        self.velocity = np.row_stack((self.velocity, particle[1]))
+        self.n_particles += 1
+        self.current_cost = np.append(self.current_cost, np.Infinity)
+        self.pbest_cost = np.append(self.current_cost, np.Infinity)
         # TODO: Finish implementing this

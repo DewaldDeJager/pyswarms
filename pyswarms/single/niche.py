@@ -126,16 +126,7 @@ class NichePSO(SwarmOptimizer):
 
             for sub_swarm in self.sub_swarms:
                 # Train sub_swarm for one iteration using the GBest model
-                # FIXME: This needs to happen AFTER position update - This needs to be done across all optimisers
-                # Update each particle's fitness
-                sub_swarm.current_cost = objective_func(sub_swarm.position, **kwargs)
-                sub_swarm.pbest_cost = objective_func(sub_swarm.pbest_pos, **kwargs)
-                sub_swarm.pbest_pos, sub_swarm.pbest_cost = compute_pbest(sub_swarm)
-                sub_swarm.best_pos, sub_swarm.best_cost = self.top.compute_gbest(sub_swarm)
-                sub_swarm.velocity = self.top.compute_velocity(sub_swarm, self.velocity_clamp)
-                sub_swarm.position = self.top.compute_position(sub_swarm, self.bounds)
-                # Update swarm radius
-                sub_swarm.radius = self.calculate_radius(sub_swarm)
+                self.update_sub_swarm(sub_swarm, objective_func, **kwargs)
 
             self.merge_sub_swarms()
 
@@ -208,6 +199,18 @@ class NichePSO(SwarmOptimizer):
         # the GBEST?
         swarm.pbest_pos = position
         return swarm
+
+    def update_sub_swarm(self, sub_swarm, objective_func, **kwargs):
+        # FIXME: This needs to happen AFTER position update - This needs to be done across all optimisers
+        # Update each particle's fitness
+        sub_swarm.current_cost = objective_func(sub_swarm.position, **kwargs)
+        sub_swarm.pbest_cost = objective_func(sub_swarm.pbest_pos, **kwargs)
+        sub_swarm.pbest_pos, sub_swarm.pbest_cost = compute_pbest(sub_swarm)
+        sub_swarm.best_pos, sub_swarm.best_cost = self.top.compute_gbest(sub_swarm)
+        sub_swarm.velocity = self.top.compute_velocity(sub_swarm, self.velocity_clamp)
+        sub_swarm.position = self.top.compute_position(sub_swarm, self.bounds)
+        # Update swarm radius
+        sub_swarm.radius = self.calculate_radius(sub_swarm)
 
     def merge_sub_swarms(self):
         if len(self.sub_swarms) < 2:
