@@ -133,12 +133,13 @@ class NichePSO(SwarmOptimizer):
             # Allow subswarms to absorb any particles from the main swarm that moved into them
             for sub_swarm in self.sub_swarms:
                 partices_to_move_to_this_sub_swarm = []
-                # Iterate in reverse order so that removal does not affect indices
-                for n in range(1, self.n_particles + 1):
-                    diff = euclidian_distance(self.swarm.position[-n], sub_swarm.best_pos)
+                for n in range(self.n_particles):
+                    diff = euclidian_distance(self.swarm.position[n], sub_swarm.best_pos)
                     if diff <= sub_swarm.radius:
-                        partices_to_move_to_this_sub_swarm.append(-n)
-                for n in partices_to_move_to_this_sub_swarm:
+                        partices_to_move_to_this_sub_swarm.append(n)
+
+                # Iterate in reverse order so that removal does not affect indices
+                for n in sorted(partices_to_move_to_this_sub_swarm, reverse=True):
                     particle = self.remove_particle_from_swarm(n)
                     sub_swarm.add_particle(particle)
 
