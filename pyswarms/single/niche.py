@@ -143,19 +143,20 @@ class NichePSO(SwarmOptimizer):
                     particle = self.remove_particle_from_swarm(n)
                     sub_swarm.add_particle(particle)
 
-            # Search main swarm for any particle that meets the partitioning criteria and possibly create sub-swarm
-            number_of_iterations_to_track = 3
-            i = 0
-            while i < self.n_particles:
-                # Calculate standard deviation for the current particle
-                std_dev = self.calculate_std_dev_of_cost(number_of_iterations_to_track, i)
-                # If the particle's deviation is low, split it and it's topographical neighbour into a sub-swarm
-                if std_dev < self.options["delta"]:
-                    self.sub_swarms.append(self.create_new_sub_swarm(i))
-                    # Increment the counter twice since the next particle will be moved to a sub-swarm
-                    i += 2
-                else:
-                    i += 1
+            if self.n_particles > 1:
+                # Search main swarm for any particle that meets the partitioning criteria and possibly create sub-swarm
+                number_of_iterations_to_track = 3
+                i = 0
+                while i < self.n_particles:
+                    # Calculate standard deviation for the current particle
+                    std_dev = self.calculate_std_dev_of_cost(number_of_iterations_to_track, i)
+                    # If the particle's deviation is low, split it and it's topographical neighbour into a sub-swarm
+                    if std_dev < self.options["delta"]:
+                        self.sub_swarms.append(self.create_new_sub_swarm(i))
+                        # Increment the counter twice since the next particle will be moved to a sub-swarm
+                        i += 2
+                    else:
+                        i += 1
 
         # Obtain the final best_cost and the final best_position
         final_best_cost = self.swarm.best_cost.copy()
@@ -206,6 +207,9 @@ class NichePSO(SwarmOptimizer):
         # Update each particle's fitness
         sub_swarm.current_cost = objective_func(sub_swarm.position, **kwargs)
         sub_swarm.pbest_cost = objective_func(sub_swarm.pbest_pos, **kwargs)
+        if sub_swarm.pbest_cost.size != sub_swarm.current_cost.size:
+            # A particle was added or removed so the pbest_cost needs to be reset
+            sub_swarm.pbest_cost = np.full(sub_swarm.current_cost.size, np.Infinity)
         sub_swarm.pbest_pos, sub_swarm.pbest_cost = compute_pbest(sub_swarm)
         sub_swarm.best_pos, sub_swarm.best_cost = self.top.compute_gbest(sub_swarm)
         sub_swarm.velocity = self.top.compute_velocity(sub_swarm, self.velocity_clamp)

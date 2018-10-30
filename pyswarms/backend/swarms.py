@@ -139,4 +139,5 @@ class Swarm(object):
         self.n_particles += 1
         self.current_cost = np.append(self.current_cost, np.Infinity)
         self.pbest_cost = np.append(self.current_cost, np.Infinity)
-        # TODO: Finish implementing this
+        self.pbest_pos = self.position
+        # TODO: Finish implementing this - Check that it will work for multiple particles
