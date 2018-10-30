@@ -199,12 +199,6 @@ class NichePSO(SwarmOptimizer):
         position = np.row_stack((particle_position, neighbour_position))
         velocity = np.row_stack((particle_velocity, neighbour_velocity))
         swarm = Swarm(position=position, velocity=velocity, options=self.options)
-        # TODO: Investigate why this is being set to an empty list rather than a list of 2 values
-        # swarm.pbest_cost = np.all(self.n_particles, np.inf)
-        # Solution: pbest_pox should be initialised to the initial position and pbest_cost to it's cost
-        # TODO: Change this so that the pbest_position is not the same as the initial position. Or is this only for
-        # the GBEST?
-        swarm.pbest_pos = position
         return swarm
 
     def update_sub_swarm(self, sub_swarm, objective_func, **kwargs):
