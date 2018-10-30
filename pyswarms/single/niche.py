@@ -158,9 +158,7 @@ class NichePSO(SwarmOptimizer):
                     else:
                         i += 1
 
-        # Obtain the final best_cost and the final best_position
-        final_best_cost = self.swarm.best_cost.copy()
-        final_best_pos = self.swarm.best_pos.copy()
+        final_best_pos, final_best_cost = self.get_best_position(objective_func, **kwargs)
         # Write report in log and return final cost and position
         self.reporter.log("Optimization finished | best cost: {}, best pos: {}".format(final_best_cost, final_best_pos),
                           lvl=logging.INFO)
@@ -170,6 +168,13 @@ class NichePSO(SwarmOptimizer):
         swarm = self.swarm if swarm is None else swarm
         return max([euclidian_distance(swarm.best_pos, swarm.get_particle(particle)[0])
                     for particle in range(swarm.n_particles)])
+
+    def get_best_position(self, objective_func, **kwargs):
+        # Obtain the final best_cost and the final best_position
+        final_best_pos = [sub_swarm.best_pos for sub_swarm in self.sub_swarms]
+        final_best_pos += [self.swarm.get_particle(i) for i in range(self.swarm.n_particles)]
+        final_best_cost = objective_func(final_best_pos, kwargs)
+        return final_best_pos, final_best_cost
 
     def calculate_std_dev_of_cost(self, number_of_iterations: int, particle_index: int):
         # Only allow the standard deviation to be considered after 3 iterations, as it starts at 0.0
